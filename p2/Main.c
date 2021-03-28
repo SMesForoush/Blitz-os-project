@@ -62,7 +62,7 @@ code Main
     --            Yield, which will suspend timeslicing.
     --    Edit .blitzrc (see "sim" command) and change TIME_SLICE value.
     --    In this function, comment out the call to "Yield".
-    --    
+    --
 
       print ("Simple Thread Example...\n")
       aThread = new Thread
@@ -114,7 +114,7 @@ code Main
       th6.Init ("thread-f")
 
       -- Start all threads running.  Each thread will execute the "foo"
-      -- function, but each will be passed a different argument. 
+      -- function, but each will be passed a different argument.
       th1.Fork (foo, 1)
       th2.Fork (foo, 2)
       th3.Fork (foo, 3)
@@ -159,7 +159,7 @@ code Main
 
   function foo (i: int)
       var j: int
- 
+
       for j = 1 to 30
         printInt (i)
 
@@ -524,8 +524,11 @@ code Main
         i: int
       for i = 1 to 7
         -- Now he is thinking
+        mon. Think(p)
+        -- Now he is hungry
         mon. PickupForks (p)
         -- Now he is eating
+        mon.Eat(p)
         mon. PutDownForks (p)
       endFor
     endFunction
@@ -534,28 +537,102 @@ code Main
     superclass Object
     fields
       status: array [5] of int             -- For each philosopher: HUNGRY, EATING, or THINKING
+      conditionMutexes: array [5] of Mutex
+      monitorMutex: Mutex
+      conditions: array [5] of Condition
+      thinkingLength: int
+      eatingLength: int
     methods
       Init ()
+      Think(p: int)
+      Eat(p: int)
       PickupForks (p: int)
       PutDownForks (p: int)
       PrintAllStatus ()
+      NextPhilosopher(p: int)
+      PrevPhilosopher(p: int)
   endClass
 
   behavior ForkMonitor
 
     method Init ()
+      -- Initialize the mutex and condition.
+      monitorMutex.Init()
+
+      for i = 0 to 5
+        conditionMutexes[i].Init()
+        endFor
+
+      thinkingLength = 100
+      eatingLength = 50
+
       -- Initialize so that all philosophers are THINKING.
-      -- ...unimplemented...
+      for i = 0 to 5
+        status[i]=THINKING
+        endFor
+
+      endMethod
+
+    method Think (p: int)
+      -- Method is called when philosopher 'p' wants to think
+
+      -- Thinking of philosopher 'p'
+      for w = 0 to thinkingLength
+        endFor
+
+      endMethod
+
+    method Eat (p: int)
+      -- Method is called when philosopher 'p' starts to eat
+
+      -- Change the status of philosopher 'p' to EATING
+      mutex.Lock()
+      mon.status[p]=EATING
+      mutex.Unlock()
+
+      -- Thinking of philosopher 'p'
+      for w = 1 to eatingLength
+        endFor
+
       endMethod
 
     method PickupForks (p: int)
       -- This method is called when philosopher 'p' is wants to eat.
-      -- ...unimplemented...
+
+      monitorMutex.Lock()
+
+      status[p]=HUNGRY
+      while status[p] != EATING
+        conditionMutexes[p].Lock()
+        conditions[p].Wait(conditionMutexes[p])
+        conditionMutexes[p].Unlock()
+        endWhile
+
+      monitorMutex.Unlock()
+
       endMethod
+
+    method IsForksFree(p: int)
+      monitorMutex.Lock()
+
+      if status[PrevPhilosopher(p)] != EATING && status[NextPhilosopher(p)] != EATING && status[p] == HUNGRY
+        status[p]=EATING
+        condition[p].Signal(conditionMutexes[p])
+        endIf
+
+      monitorMutex.Unlock()
 
     method PutDownForks (p: int)
       -- This method is called when the philosopher 'p' is done eating.
-      -- ...unimplemented...
+      -- Change the status of philosopher 'p' to THINKING
+      monitorMutex.Lock()
+      mon.status[p]=THINKING
+
+      IsForksFree(PrevPhilosopher(p))
+      IsForksFree(NextPhilosopher(p))
+
+      monitorMutex.Unlock()
+
       endMethod
 
     method PrintAllStatus ()
@@ -586,6 +663,14 @@ code Main
           endSwitch
         endFor
         nl ()
+      endMethod
+
+    method NextPhilosopher (p: int)
+      return (p+1)%5
+      endMethod
+
+    method NextPhilosopher (p: int)
+      return (p+4)%5
       endMethod
 
   endBehavior
