@@ -120,6 +120,8 @@ code Synch
           endIf
 
           isLocked = true
+          ownerThread = currentThread
+
           oldIntStat = SetInterruptsTo (oldIntStat)
         endMethod
 

@@ -8,7 +8,7 @@ header Synch
       count: int
       waitingThreads: List [Thread]
     methods
-      Init (initialCount: int)Sahel Mesforoush
+      Init (initialCount: int)
       Down ()
       Up ()
   endClass
